@@ -1,8 +1,12 @@
 ﻿using System;
 using BepInEx;
 using BepInEx.Logging;
+using NWH.VehiclePhysics2.Powertrain;
 using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using Whilefun.FPEKit;
 
 namespace OHVTrainer;
 
@@ -12,15 +16,18 @@ public class Plugin : BaseUnityPlugin
 {
     internal static new ManualLogSource Logger;
 
-    private UI UIManager;
+    private GameObject trainerWindow;
+    private GameObject playerGameObject;
 
-    public delegate void OnWindowInstantiated(GameObject prefab);
-    public static event OnWindowInstantiated onWindowInstantiated;
+    private UI UIManager = new UI();
+    private Player player = new Player();
+    private EngineComponent nysaEngine;
+
+    private TMPro.TMP_Text playerPositionText;
+    private TMPro.TMP_Text nysaDetailsText;
 
     private void Awake()
     {
-        UIManager = new UI();
-
         Logger = base.Logger;
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
     }
@@ -33,49 +40,130 @@ public class Plugin : BaseUnityPlugin
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
-        UI.onError -= UI_OnError;
+    }
+
+    private void Update()
+    {
+        if (Keyboard.current.f5Key.wasPressedThisFrame)
+        {
+            if (trainerWindow != null)
+            {
+                trainerWindow.SetActive(!trainerWindow.activeSelf);
+
+                Cursor.visible = !Cursor.visible;
+                Cursor.lockState = trainerWindow.activeSelf ? CursorLockMode.None : CursorLockMode.Locked;
+                player.TogglePlayerActions(FPEFirstPersonController.Instance, FPEMouseLook.I);
+            }
+        }
+
+        if (Keyboard.current.f10Key.wasPressedThisFrame)
+        {
+            var nyysa = FindObjectOfType<NysaCarController>()._vehicleController.powertrain;
+            nyysa.transmission.finalGearRatio = 1.2f;
+            nysaEngine = nyysa.engine;
+            nysaEngine.maxPower = 160;
+            nysaEngine.maxRPM = 9000;
+        }
+
+        if (Keyboard.current.f11Key.wasPressedThisFrame)
+        {
+            nysaEngine.maxPower = 160;
+            nysaEngine.maxRPM = 9000;
+        }
+
+        // Update Player Position Text
+        if (playerGameObject != null)
+        {
+            playerPositionText.text = $"Position:\nX: {playerGameObject.transform.position.x}\nY: {playerGameObject.transform.position.y}\n Z: {playerGameObject.transform.position.z}";
+        }
+        
+        if (nysaEngine != null)
+        {
+            nysaDetailsText.text =
+                $"NYSA:\n" +
+                $"IsRunning: {nysaEngine.IsRunning}\n" +
+                $"Engine Type: {nysaEngine.engineType.ToString()}\n" +
+                $"Power: {nysaEngine.generatedPower}\n\n" +
+                $"MAX RPM: {nysaEngine.maxRPM}" +
+                $"RPM: {nysaEngine.RPM}";
+        } else
+        {
+            nysaDetailsText.text = "ERROR";
+        }
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (IsMainGameSceneLoaded(scene.name))
         {
-            UI.onAssetLoaded += UIManager_OnAssetLoaded;
-            UI.onError += UI_OnError;
-            UI.instantiateTrainer += UI_InstantiateTrainer;
-            UIManager.LoadResources();
+            LoadAsset();
         }
     }
 
-    private void UI_InstantiateTrainer(GameObject prefab)
+    private void LoadAsset()
     {
-        CreateWindow(prefab);
-    }
-
-    private void UI_OnError(UI.ErrorType type, string message)
-    {
-        switch (type)
+        AssetBundle bundle = AssetBundle.LoadFromFile(GetResourcesLocation() + "ohvtrainer.trainer");
+        if (bundle ==  null)
         {
-            case UI.ErrorType.Success:
-                Logger.LogInfo($"[OHVTrainer] {message}");
-                break;
-            case UI.ErrorType.Error:
-                Logger.LogError($"[OHVTrainer] {message}");
-                break;
-            case UI.ErrorType.Message:
-                Logger.LogWarning($"[OHVTrainer] {message}");
-                break;
+            Logger.LogError("Cannot load Trainer AssetBundle!");
+            return;
         }
+
+        GameObject prefab = bundle.LoadAsset<GameObject>("TrainerCanvas");
+
+        if (prefab == null)
+        {
+            Logger.LogError("Cannot load \"TrainerCanvas\" from AssetBundle!");
+            return;
+        }
+
+        trainerWindow = Instantiate(prefab);
+
+        if (trainerWindow == null)
+        {
+            Logger.LogError("Cannot instantiate trainerWindow!");
+        }
+
+        trainerWindow.SetActive(false);
+
+        // Setup Variables
+        nysaDetailsText = UIManager.GetNysaDetailsText(trainerWindow);
+        playerGameObject = GameObject.FindGameObjectWithTag("Player").gameObject;
+        playerPositionText = UIManager.GetPlayerPositionText(trainerWindow);
+        UIManager.GetMoneyInputField(trainerWindow).text = player.GetMoney().ToString();
+
+        SetupAllListeners();
+
+        prefab = null;
+        bundle = null;
     }
 
-    private void UIManager_OnAssetLoaded(bool isSuccessful)
+    private void SetupAllListeners()
     {
-        if (!isSuccessful)
-        {
-            Logger.LogError("[OHVTrainer] Cannot load AssetBundle!");
-        }
+        UIManager.GetInfiniteHealthToggle(trainerWindow).onValueChanged.AddListener(OnHealthToggleChanged);
+        UIManager.GetInfiniteStaminaToggle(trainerWindow).onValueChanged.AddListener(OnStaminaToggleChanged);
 
-        UI.onAssetLoaded -= UIManager_OnAssetLoaded;
+        UIManager.GetMoneyButton(trainerWindow).onClick.AddListener(OnSetMoneyButtonPressed);
+    }
+
+    private void OnHealthToggleChanged(bool value)
+    {
+        player.SetHealthInfinite(value);
+    }
+
+    private void OnStaminaToggleChanged(bool value)
+    {
+        player.SetStaminaInfinite(value);
+    }
+
+    private void OnSetMoneyButtonPressed()
+    {
+        string moneyText = UIManager.GetMoneyInputField(trainerWindow).text;
+
+        if (int.TryParse(moneyText, out int money))
+        {
+            player.SetMoney(money);
+        }
     }
 
     private bool IsMainGameSceneLoaded(string name)
@@ -83,8 +171,8 @@ public class Plugin : BaseUnityPlugin
         return name.Equals("MainGame");
     }
 
-    private void CreateWindow(GameObject prefab)
+    private string GetResourcesLocation()
     {
-        Instantiate(prefab);
+        return Paths.PluginPath + "/Resources/OHVTrainer/";
     }
 }

@@ -1,73 +1,47 @@
-﻿using BepInEx;
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace OHVTrainer
 {
     internal class UI
     {
-        AssetBundle trainer;
-        GameObject prefab;
-        GameObject canvas;
-
-        public delegate void OnAssetLoaded(bool isSuccessful);
-        public static event OnAssetLoaded onAssetLoaded;
-
-        public delegate void OnError(ErrorType type, string message);
-        public static event OnError onError;
-
-        public delegate void InstantiateTrainer(GameObject prefab);
-        public static event InstantiateTrainer instantiateTrainer;
-
-        public enum ErrorType
+        public TMPro.TMP_Text GetPlayerPositionText(GameObject MainWindow)
         {
-            Message,
-            Success,
-            Error
+            return MainWindow.transform.Find("MainWindow").Find("PlayerPos").GetComponent<TMP_Text>();
         }
 
-        // Load Asset Bundle (containing Canvas, Build in Unity3D) into the game.
-        public void LoadResources()
+        public TMPro.TMP_Text GetNysaDetailsText(GameObject MainWindow)
         {
-            trainer = AssetBundle.LoadFromFile(GetResourcesLocation() + "ohvtrainer.trainer");
-            if (trainer == null) { onAssetLoaded?.Invoke(false); }
-            else 
-            { 
-                onAssetLoaded?.Invoke(true);
-                CreateMainWindow();
-            }
+            return MainWindow.transform.Find("MainWindow").Find("NysaDetails").GetComponent<TMP_Text>();
         }
 
-        // Create Trainer canvas in game world.
-        public void CreateMainWindow()
+        public TMPro.TMP_InputField GetMoneyInputField(GameObject MainWindow)
         {
-            prefab = trainer.LoadAsset<GameObject>("TrainerCanvas");
-
-            if (prefab == null)
-            {
-                onError?.Invoke(ErrorType.Error, "Cannot Load Asset \"TrainerCanvas\"!");
-                onError?.Invoke(ErrorType.Message, "Available Assets: ");
-                int a = 1;
-                foreach (var item in trainer.GetAllAssetNames())
-                {
-                    onError?.Invoke(ErrorType.Message, $"{a}. {item}");
-                    a++;
-                }
-                return;
-            }
-
-            Plugin.onWindowInstantiated += Plugin_OnWindowInstantiated;
-            instantiateTrainer?.Invoke(prefab);
+            return GetWindow(MainWindow).Find("Player").Find("Money").Find("MoneyTextInput").GetComponent<TMPro.TMP_InputField>();
         }
 
-        private void Plugin_OnWindowInstantiated(GameObject prefab)
+        public Button GetMoneyButton(GameObject MainWindow)
         {
-            canvas = prefab;
-            onError?.Invoke(ErrorType.Success, "Window Successfuly Created!");
+            return GetWindow(MainWindow).Find("Player").Find("Money").Find("SetMoneyButton").GetComponent<Button>();
         }
 
-        private string GetResourcesLocation()
+        public Toggle GetInfiniteHealthToggle(GameObject MainWindow)
         {
-            return Paths.PluginPath + "/Resources/OHVTrainer/";
+            return GetWindow(MainWindow).Find("Player").Find("Stats").Find("InfiniteHealthCheckbox").GetComponent<Toggle>();
+        }
+
+        public Toggle GetInfiniteStaminaToggle(GameObject MainWindow)
+        {
+            return GetWindow(MainWindow).Find("Player").Find("Stats").Find("InfiniteStaminaCheckbox").GetComponent<Toggle>();
+        }
+
+        private Transform GetWindow(GameObject MainWindow)
+        {
+            return MainWindow.transform.Find("MainWindow").Find("Wrapper").Find("Scroll View").Find("Viewport").Find("Content");
         }
     }
 }

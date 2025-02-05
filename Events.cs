@@ -11,7 +11,7 @@ namespace OHVTrainer
     {
         public void JoinDziupla()
         {
-            new PlayerStats().AddMoney(10);
+            new Player().AddMoney(10);
             var dziupla = GameObject.FindObjectOfType<OHVDziupla>();
             dziupla.HandleJoinAndPay();
         }

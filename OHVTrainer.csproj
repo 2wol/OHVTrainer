@@ -30,9 +30,21 @@
     <Reference Include="Assembly-CSharp">
       <HintPath>..\OHV\OHV_Data\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
+    <Reference Include="NWH.VehiclePhysics2.VehicleController">
+      <HintPath>..\OHV\OHV_Data\Managed\NWH.VehiclePhysics2.VehicleController.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.InputSystem">
+      <HintPath>..\OHV\OHV_Data\Managed\Unity.InputSystem.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>..\OHV\OHV_Data\Managed\Unity.TextMeshPro.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>..\OHV\OHV_Data\Managed\UnityEngine.UI.dll</HintPath>
+    </Reference>
   </ItemGroup>
   
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="xcopy /y &quot;$(TargetDir)$(TargetFileName)&quot; &quot;C:\Games\OHV\BepInEx\plugins\&quot;" />
+    <Exec Command="xcopy /y &quot;$(TargetDir)$(TargetFileName)&quot; &quot;C:\Games\OHV\BepInEx\plugins\&quot;&#xD;&#xA;start &quot;&quot; &quot;C:\Games\OHV\OHV.exe&quot;" />
   </Target>
 </Project>
